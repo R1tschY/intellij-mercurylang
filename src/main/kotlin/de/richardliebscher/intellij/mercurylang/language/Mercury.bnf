@@ -1,0 +1,286 @@
+{
+  parserClass="de.richardliebscher.intellij.mercurylang.language.MercuryParser"
+
+  extends="com.intellij.extapi.psi.ASTWrapperPsiElement"
+
+  psiClassPrefix="Mercury"
+  psiImplClassSuffix="Impl"
+  psiPackage="de.richardliebscher.intellij.mercurylang.language.psi"
+  psiImplPackage="de.richardliebscher.intellij.mercurylang.language.psi.impl"
+
+  elementTypeHolderClass="de.richardliebscher.intellij.mercurylang.language.psi.MercuryTypes"
+  elementTypeClass="de.richardliebscher.intellij.mercurylang.language.psi.MercuryElementType"
+  tokenTypeClass="de.richardliebscher.intellij.mercurylang.language.psi.MercuryTokenType"
+
+  psiImplUtilClass = "de.richardliebscher.intellij.mercurylang.language.psi.impl.MercuryPsiImplUtil"
+
+  tokens = [
+    HT_SEP = "|"
+    PERIOD = "regexp:\.(\s+|$)"
+
+    DOT = "."
+    COMMA = ","
+    SEMICOLON = ";"
+    OPEN = "("
+    CLOSE = ")"
+    OPEN_LIST = "["
+    CLOSE_LIST = "]"
+    OPEN_CURLY = "{"
+    CLOSE_CURLY = "}"
+
+    STAR = "*"
+    SLASH = "/"
+    SLASHSLASH = "//"
+    LEFT_SHIFT = "<<"
+    RIGHT_SHIFT = ">>"
+    DIV = "div"
+    MOD = "mod"
+    REM = "rem"
+    COLON_MINUS = ":-"
+    TWO_DASH_ARROW = "-->"
+    THREE_DASH_ARROW = "--->"
+    COLONCOLON = "::"
+    EXCLAMATION = "!"
+    IS = "is"
+    DOUBLE_EQUAL = "=="
+    EQUAL_LESS = "=<"
+    AND = "&"
+    TRUE = "true"
+    FAIL = "fail"
+    NOT = "not"
+    SLASH_PLUS = "\\+"
+    EQUAL = "="
+    SLASH_EQUAL = "\\="
+    PLUS = "+"
+    PLUS_PLUS = "++"
+    MINUS = "-"
+    MINUS_MINUS = "--"
+    BOOL_AND = "/\\"
+    BOOL_OR = "\\/"
+
+    TYPE = "type"
+    SOLVER = "solver"
+    PRED = "pred"
+    FUNC = "func"
+    INST = "inst"
+    MODE = "mode"
+    TYPECLASS = "typeclass"
+    INSTANCE = "instance"
+    PRAGMA = "pragma"
+    PROMISE = "promise"
+    INITIALISE = "initialise"
+    FINALISE = "finalise"
+    MUTABLE = "mutable"
+    MODULE = "module"
+    INTERFACE = "interface"
+    IMPLEMENTATION = "implementation"
+    IMPORT_MODULE = "import_module"
+    USE_MODULE = "use_module"
+    INCLUDE_MODULE = "include_module"
+    END_MODULE = "end_module"
+
+//    DET = "det"
+//    SEMIDET = "semidet"
+//    MULTI = "multi"
+//    NONDET = "nondet"
+//    FAILURE = "failure"
+//    ERRONEOUS = "erroneous"
+
+    SPACE = 'regexp:[\u0020\u0009-\u000D]+'
+    LINE_COMMENT = 'regexp:%.*'
+    BLOCK_COMMENT = 'regexp:/\*(.|\n)*\*/'
+
+    IDENT = "regexp:[a-z][a-zA-Z_0-9]*|'(''|[^'])*'?"
+    INTEGER = 'regexp:([0-9][0-9_]*|0x[a-fA-F0-9_]*|0o[0-7_]*|0b[01_]*)([iu](8|16|32|64)?)?'
+    FLOAT = 'regexp:[0-9]+(\.[0-9]+)?([Ee][+-]?[0-9]+)?'
+    STRING = 'regexp:"([^\\"]|\\.|"")*"?'
+    VARIABLE = 'regexp:[A-Z_][a-zA-Z_0-9]*'
+    IMPLEMENTATION_DEFINED_LITERAL = 'regexp:\$[a-z][a-zA-Z_0-9]*'
+  ]
+
+  extends(".*_term") = term
+  consumeTokenMethod(".*_term") = "consumeTokenFast"
+  extends(".*_goal") = goal
+  consumeTokenMethod(".*_goal") = "consumeTokenFast"
+}
+
+module ::=
+ start_module
+ (interface_block | implementation_block)*
+ stop_module?
+
+private start_module ::= COLON_MINUS decl_module PERIOD
+interface_block ::= COLON_MINUS decl_interface PERIOD item_*
+implementation_block ::= COLON_MINUS decl_implementation PERIOD item_*
+private stop_module ::= COLON_MINUS END_MODULE PERIOD
+
+// Items
+private item_ ::= (declaration | clause) PERIOD
+
+// Declaration
+declaration ::= !(no_interface_impl) COLON_MINUS (decl_type
+    | decl_solver_type
+    | decl_import_module
+    | decl_pred
+    | decl_use_module
+) {
+    pin=2
+    methods=[getPresentation]
+}
+private no_period ::= !(PERIOD)
+private no_interface_impl ::= COLON_MINUS (decl_interface | decl_implementation)
+
+qname ::= IDENT (DOT IDENT)*
+mode_ident ::= qname
+module_list ::= qname (COMMA qname)* // {pin("COMMA")=1}
+argument_list ::= data_term (COMMA data_term) *
+variable_list ::= '(' variable_term (COMMA variable_term) * ')' {pin(".*")=1}
+determinism_category ::= IDENT // DET | SEMIDET | MULTI | NONDET | FAILURE | ERRONEOUS
+
+decl_argument_type ::= qname ( '(' decl_argument_type (COMMA decl_argument_type)* ')' )? | VARIABLE
+decl_argument_type_with_mode ::= decl_argument_type ("::" mode_ident)?
+decl_argument_list ::= '(' decl_argument_type_with_mode (COMMA decl_argument_type_with_mode) * ')' {pin(".*")=1}
+
+decl_module ::= MODULE qname {pin=1 recoverWhile=no_period}
+decl_interface ::= INTERFACE
+decl_import_module ::= IMPORT_MODULE module_list {pin=1}
+decl_pred ::= PRED qname decl_argument_list ('is' determinism_category)? {pin(".*")=1}
+decl_implementation ::= IMPLEMENTATION
+decl_solver_type ::= SOLVER TYPE {pin=1}
+decl_use_module ::= USE_MODULE module_list {pin=1}
+
+// Types
+type_ref ::= IDENT variable_list?
+decl_type ::= TYPE type_ref (
+    discriminated_union | equivalence_type | subtype | abstract_type) {pin=1}
+private constructor_definition ::= term
+private constructor_definition_list ::= [constructor_definition (';' constructor_definition) *] {pin(".*")=1}
+
+discriminated_union ::= '--->' constructor_definition_list
+equivalence_type ::= '==' term
+abstract_type ::=
+subtype ::= '=<' type_ref '--->' constructor_definition_list
+
+// Cause
+private clause ::= rule | dcg_rule // {recoverWhile=no_period}
+private rule ::= function_rule | predicate_rule
+function_rule ::= data_term EQUAL data_term (COLON_MINUS goal)?
+predicate_rule ::= data_term (COLON_MINUS goal)?
+dcg_rule ::= functor_term '-->' functor_term
+
+// Goals
+goal ::= (
+//    "some" vars goal
+//    | "all" vars goal
+    conjunction_goal
+    | parallel_conjunction_goal
+    | if_then_else1_goal | if_then_else2_goal
+    | disjunction_goal
+    | true_goal
+    | fail_goal
+    | negation_goal
+    | implication_goal
+    | reverse_implication_goal
+    | logical_equivalence_goal
+    | unification_goal
+    | inequality_goal
+//    | "call" OPEN VARIABLE ("," data_term)* CLOSE
+//    | VARIABLE OPEN VARIABLE ("," data_term)* CLOSE
+//    | "promise_pure" goal
+//    | "promise_semipure" goal
+//    | "promise_impure" goal
+//    | "promise_equivalent_solutions" vars goal
+//    | "promise_equivalent_solution_sets" vars goal
+//    | "require_det" goal
+//    | "require_semidet" goal
+//    | "require_multi" goal
+//    | "require_nondet" goal
+//    | "require_cc_multi" goal
+//    | "require_cc_nondet" goal
+//    | "require_erroneous" goal
+//    | "require_failure" goal
+//    | "require_complete_switch" VARIABLE? goal
+//    | "require_switch_arms_det" VARIABLE? goal
+//    | "require_switch_arms_semidet" VARIABLE? goal
+//    | "require_switch_arms_multi" VARIABLE? goal
+//    | "require_switch_arms_nondet" VARIABLE? goal
+//    | "require_switch_arms_cc_multi" VARIABLE? goal
+//    | "require_switch_arms_cc_nondet" VARIABLE? goal
+//    | "require_switch_arms_erroneous" VARIABLE? goal
+//    | "require_switch_arms_failure" VARIABLE? goal
+//    | "disable_warnings" ("singleton_vars" | "suspected_occurs_check_failure" | "suspicious_recursion" | "no_solution_disjunct")? goal
+//    | "trace" params goal
+//    | "try" params goal "then" goal "else" goal ("catch" term "->" goal)* ("catch_any" VARIABLE "->" goal)?
+//    | "event" goal
+    | predicate_call_goal
+)
+
+conjunction_goal ::= goal COMMA goal {rightAssociative=true}
+parallel_conjunction_goal ::= goal AND goal {rightAssociative=true}
+disjunction_goal ::= goal SEMICOLON goal {rightAssociative=true}
+true_goal ::= TRUE
+fail_goal ::= FAIL
+negation_goal ::= NOT goal | SLASH_PLUS goal
+implication_goal ::= goal IMPLICATION goal {rightAssociative=true}
+reverse_implication_goal ::= goal REVERSE_IMPLICATION goal {rightAssociative=true}
+logical_equivalence_goal ::= goal LOGICAL_EQUIVALENCE goal {rightAssociative=true}
+if_then_else1_goal ::= "if" goal "then" goal "else" goal
+if_then_else2_goal ::= goal "->" goal ";" goal
+unification_goal ::= data_term EQUAL data_term
+inequality_goal ::= data_term SLASH_EQUAL data_term
+predicate_call_goal ::= IDENT ( OPEN data_term (COMMA data_term) CLOSE )?
+
+// Terms
+term ::= argument_term
+private functor_term ::= dot_term
+    | op40_group
+    | op400_group
+    | op500_group
+    | primary_group
+private argument_term ::= functor_term | variable_term
+
+// Data term: https://mercurylang.org/information/doc-release/mercury_ref/Data_002dterms.html
+data_term ::= VARIABLE | data_functor  // TODO: | special_data_term
+// Data-functors: https://mercurylang.org/information/doc-release/mercury_ref/Data_002dfunctors.html
+private data_functor ::= functor_term // TODO
+
+private op40_group ::= exclamation_term
+private op400_group ::= mul_term | fdiv_term | idiv_term | left_shift_term | right_shift_term | div_term | mod_term | rem_term
+private op500_group ::= plus_term | add_term | minus_term | sub_term | plus_plus_term | minus_minus_term | bool_and_term | bool_or_term
+private primary_group ::= non_op_compound_term | literal_term
+
+//functor ::= INTEGER | FLOAT | STRING | NAME /* | higher_order_term*/
+//private compound_term ::= simple_compound_term | list_term | tuple_term | parenthesized_term
+private non_op_compound_term ::= simple_compound_term | list_term | tuple_term | parenthesized_term
+simple_compound_term ::= IDENT OPEN argument_list? ')'
+list_term ::= '[' (argument_list ('|' term)? )? ']'
+tuple_term ::= '{' argument_list? '}'
+//operator_term ::= binary_expr
+literal_term ::= INTEGER | FLOAT | STRING | IDENT | IMPLEMENTATION_DEFINED_LITERAL
+variable_term ::= VARIABLE
+parenthesized_term ::= '(' term ')'
+//// TODO higher_order_term ::=
+
+// Operations
+dot_term ::= term DOT term
+exclamation_term ::= '!' term
+
+// 400
+mul_term ::= term '*' term
+fdiv_term ::= term '/' term
+idiv_term ::= term '//' term
+left_shift_term ::= term '<<' term
+right_shift_term ::= term '>>' term
+div_term ::= term 'div' term
+mod_term ::= term 'mod' term
+rem_term ::= term 'rem' term
+
+// 500
+plus_term ::= "+" term
+add_term ::= term "+" term
+plus_plus_term ::= term "++" term {rightAssociative=true}
+minus_term ::= "-" term
+sub_term ::= term "-" term
+minus_minus_term ::= term "--" term {rightAssociative=true}
+bool_and_term ::= term "/\\" term
+bool_or_term ::= term "\\/" term

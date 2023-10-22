@@ -1,18 +1,46 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.github.r1tschy.intellijmercurylang</id>
-    <name>intellij-mercurylang Template</name>
-    <vendor>r1tschy</vendor>
+    <id>de.richardliebscher.intellij.mercurylang</id>
+    <name>Mercury</name>
+    <vendor>Richard Liebscher</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
+    <resource-bundle>messages.MercuryBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.r1tschy.intellijmercurylang.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
+        <fileType
+                name="Mercury Source File"
+                implementationClass="de.richardliebscher.intellij.mercurylang.language.MercuryFileType"
+                fieldName="INSTANCE"
+                language="Mercury"
+                extensions="m"/>
     </extensions>
 
-    <applicationListeners>
-        <listener class="com.github.r1tschy.intellijmercurylang.listeners.MyApplicationActivationListener" topic="com.intellij.openapi.application.ApplicationActivationListener"/>
-    </applicationListeners>
+    <extensions defaultExtensionNs="com.intellij">
+        <lang.parserDefinition
+                language="Mercury"
+                implementationClass="de.richardliebscher.intellij.mercurylang.language.MercuryParserDefinition"/>
+        <lang.syntaxHighlighterFactory
+                language="Mercury"
+                implementationClass="de.richardliebscher.intellij.mercurylang.ide.MercurySyntaxHighlighterFactory"/>
+        <colorSettingsPage
+                implementation="de.richardliebscher.intellij.mercurylang.ide.colors.MercuryColorSettingsPage"/>
+        <lang.commenter
+                language="Mercury"
+                implementationClass="de.richardliebscher.intellij.mercurylang.ide.MercuryCommenter"/>
+        <lang.braceMatcher
+                language="Mercury"
+                implementationClass="de.richardliebscher.intellij.mercurylang.ide.MercuryBraceMatcher"/>
+        <completion.contributor
+            language="Mercury"
+            implementationClass="de.richardliebscher.intellij.mercurylang.ide.completion.MercuryCompletionContributor"/>
+        <lang.psiStructureViewFactory
+            language="Mercury"
+            implementationClass="de.richardliebscher.intellij.mercurylang.ide.structure.MercuryStructureViewFactory"/>
+        <lang.quoteHandler
+            language="Mercury"
+            implementationClass="de.richardliebscher.intellij.mercurylang.ide.MercuryQuoteHandler"/>
+        <sdkType implementation="de.richardliebscher.intellij.mercurylang.sdk.MercurySdkType"/>
+    </extensions>
 </idea-plugin>
